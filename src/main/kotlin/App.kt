@@ -13,9 +13,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
 import kotlinx.io.writeString
-import nl.helico.postgreskt.protocol.messages.StartupMessage
-import nl.helico.postgreskt.protocol.readMessage
-import nl.helico.postgreskt.protocol.writeMessage
 
 fun main() {
     runBlocking {
@@ -24,26 +21,6 @@ fun main() {
 
         val readChannel = socket.openReadChannel()
         val writeChannel = socket.openWriteChannel()
-
-        println("connecting")
-
-        // connect
-        // writeChannel.startupMessage("postgres", "postgres")
-        val startupMessage =
-            StartupMessage(
-                parameters =
-                    mapOf(
-                        "user" to "postgres",
-                        "database" to "postgres",
-                    ),
-            )
-
-        writeChannel.writeMessage(startupMessage)
-
-        println("connected")
-        // result
-        val message = readChannel.readMessage()
-        println(message)
     }
 }
 
