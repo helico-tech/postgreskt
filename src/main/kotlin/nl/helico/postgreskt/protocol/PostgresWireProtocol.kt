@@ -3,9 +3,13 @@ package nl.helico.postgreskt.protocol
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import io.ktor.util.moveToByteArray
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.availableForRead
 import io.ktor.utils.io.close
+import io.ktor.utils.io.read
+import io.ktor.utils.io.readBuffer
 import io.ktor.utils.io.writePacket
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +25,10 @@ import java.lang.AutoCloseable
 interface PostgresWireProtocol {
     val backendChannel: ReceiveChannel<BackendMessage>
     val frontendChannel: SendChannel<FrontendMessage>
+
+    operator fun component1() = frontendChannel
+
+    operator fun component2() = backendChannel
 }
 
 fun PostgresWireProtocol(socket: Socket): PostgresWireProtocol =
@@ -58,6 +66,11 @@ internal class PostgresWireProtocolImpl(
     }
 
     private suspend fun consumeBackendMessages(byteChannel: ByteReadChannel) {
+        while (!byteChannel.isClosedForRead) {
+            byteChannel.read(min = 1) {
+                println(it.moveToByteArray().toString(charset("UTF-8")))
+            }
+        }
     }
 
     override fun close() {
