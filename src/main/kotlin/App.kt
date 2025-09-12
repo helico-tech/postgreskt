@@ -19,5 +19,5 @@ suspend fun main() {
 
     client.connect()
 
-    client.query("SELECT 1")
+    client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
 }

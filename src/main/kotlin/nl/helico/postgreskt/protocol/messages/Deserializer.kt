@@ -20,6 +20,9 @@ object BackendMessageSerializer : Deserializer<BackendMessage> {
             'N' -> NoticeResponse.deserialize(type, buffer)
             'Z' -> ReadyForQuery.deserialize(type, buffer)
             'S' -> ParameterStatus.deserialize(type, buffer)
+            'T' -> RowDescription.deserialize(type, buffer)
+            'D' -> DataRow.deserialize(type, buffer)
+            'C' -> CommandComplete.deserialize(type, buffer)
             else -> BackendMessage.Unhandled(type, buffer)
         }
 }

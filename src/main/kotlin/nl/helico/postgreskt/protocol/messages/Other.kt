@@ -46,6 +46,20 @@ data class ParameterStatus(
     }
 }
 
+data class CommandComplete(
+    val tag: String,
+) : BackendMessage {
+    companion object : Deserializer<CommandComplete> {
+        override fun deserialize(
+            type: Char,
+            buffer: Buffer,
+        ): CommandComplete {
+            val tag = buffer.readCString()
+            return CommandComplete(tag)
+        }
+    }
+}
+
 object IdentifiedFieldListDeserializer : Deserializer<List<IdentifiedField>> {
     override fun deserialize(
         type: Char,
