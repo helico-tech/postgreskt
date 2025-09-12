@@ -10,7 +10,6 @@ import kotlinx.io.readByteArray
 import nl.helico.postgreskt.protocol.messages.StartupMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.expect
 
 class PostgresWireProtocolTests {
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -20,7 +19,7 @@ class PostgresWireProtocolTests {
             val input = ByteReadChannel.Empty
             val output = ByteChannel()
             val protocol =
-                PostgresWireProtocolImpl(
+                ProtocolImpl(
                     input,
                     output,
                     this,

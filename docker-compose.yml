@@ -1,9 +1,11 @@
 services:
   postgres:
-    image: postgres:14.6-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: --auth-host=md5
     ports:
       - '5432:5432'

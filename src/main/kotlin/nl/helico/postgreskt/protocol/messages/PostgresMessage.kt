@@ -8,4 +8,9 @@ sealed interface FrontendMessage : PostgresMessage {
     fun asBuffer(): Buffer
 }
 
-sealed interface BackendMessage : PostgresMessage
+sealed interface BackendMessage : PostgresMessage {
+    data class Unhandled(
+        val type: Char,
+        val body: Buffer,
+    ) : BackendMessage
+}
