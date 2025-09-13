@@ -9,16 +9,24 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.io.readString
+import kotlinx.io.readUShort
 import nl.helico.postgreskt.protocol.Protocol
 import nl.helico.postgreskt.protocol.messages.AuthenticationMD5Password
 import nl.helico.postgreskt.protocol.messages.AuthenticationOK
 import nl.helico.postgreskt.protocol.messages.BackendMessage
+import nl.helico.postgreskt.protocol.messages.DataRow
 import nl.helico.postgreskt.protocol.messages.ErrorResponse
 import nl.helico.postgreskt.protocol.messages.FrontendMessage
 import nl.helico.postgreskt.protocol.messages.PasswordMessage
 import nl.helico.postgreskt.protocol.messages.Query
 import nl.helico.postgreskt.protocol.messages.ReadyForQuery
+import nl.helico.postgreskt.protocol.messages.RowDescription
 import nl.helico.postgreskt.protocol.messages.StartupMessage
+import nl.helico.postgreskt.protocol.messages.padded
 
 interface Client {
     data class Parameters(
@@ -34,7 +42,7 @@ interface Client {
 
     suspend fun connect()
 
-    suspend fun query(sql: String)
+    suspend fun query(sql: String): QueryResult
 }
 
 fun Client(
@@ -65,6 +73,8 @@ class ClientImpl(
     private lateinit var backend: ReceiveChannel<BackendMessage>
     private lateinit var frontend: SendChannel<FrontendMessage>
 
+    private val types = mutableMapOf<Short, String>()
+
     override suspend fun connect() {
         val socket = socket.connect(parameters.host, parameters.port)
         val protocol = Protocol(socket)
@@ -74,13 +84,46 @@ class ClientImpl(
 
         startup()
         authenticate()
+        queryDataTypes()
     }
 
-    override suspend fun query(sql: String) {
+    override suspend fun query(sql: String): QueryResult {
+        val (rowDescription, data) = rawQuery(sql)
+        return QueryResult(
+            columns =
+                rowDescription.fields.map {
+                    QueryResult.Column(
+                        it.dataTypeObjectId,
+                        it.name,
+                        types[it.dataTypeObjectId.toShort()] ?: "unknown",
+                    )
+                },
+            data = data.map { QueryResult.Row(it.values) },
+        )
+    }
+
+    private suspend fun rawQuery(sql: String): Pair<RowDescription, Flow<DataRow>> {
+        if (!isReady) awaitReadyForQuery()
+
+        isReady = false
         frontend.send(Query(sql))
-        while (true) {
-            val msg = backend.receive()
-        }
+
+        val rowDescription = backend.receive() as RowDescription
+
+        val data =
+            flow {
+                var isComplete = false
+                while (!isComplete) {
+                    val msg = backend.receive()
+                    if (msg !is DataRow) {
+                        isComplete = true
+                    } else {
+                        emit(msg)
+                    }
+                }
+            }
+
+        return rowDescription to data
     }
 
     private suspend fun startup() {
@@ -95,13 +138,31 @@ class ClientImpl(
 
         backend.receive().also { if (it is ErrorResponse) throw Exception(it.toString()) }
 
-        // now it is time to wait for ReadyForQuery
+        awaitReadyForQuery()
+    }
+
+    private suspend fun awaitReadyForQuery() {
         while (true) {
             val msg = backend.receive()
             if (msg is ReadyForQuery) {
                 isReady = true
                 break
             }
+        }
+    }
+
+    private suspend fun queryDataTypes() {
+        val (description, data) = rawQuery("SELECT t.oid, t.typname FROM pg_type t")
+        data.collect { row ->
+            /*val oid = row.values[0]?.readShort() ?: throw Exception("Could not read oid from row")
+            val typname: String = row.values[1]?.readString() ?: throw Exception("Could not read typname from row")
+            types[oid] = typname*/
+
+            val padded = row.values[0]?.padded(description.fields[0].dataTypeSize)
+
+            val typName = row.values[1]?.readString() ?: throw Exception("Could not read typname from row")
+            // val oid = row.values[0]?() ?: throw Exception("Could not read oid from row")
+            // println("$typName: $oid")
         }
     }
 }

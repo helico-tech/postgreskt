@@ -1,6 +1,7 @@
 package nl.helico.postgreskt.protocol.messages
 
 import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.core.writeFully
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
 
@@ -49,7 +50,7 @@ data class FieldDescriptor(
 )
 
 data class DataRow(
-    val values: List<ByteArray?>,
+    val values: List<Buffer?>,
 ) : BackendMessage {
     companion object : Deserializer<DataRow> {
         override fun deserialize(
@@ -57,12 +58,12 @@ data class DataRow(
             buffer: Buffer,
         ): DataRow {
             val count = buffer.readShort()
-            val values = mutableListOf<ByteArray?>()
+            val values = mutableListOf<Buffer?>()
             (0 until count).forEach { _ ->
                 when (val length = buffer.readInt()) {
                     -1 -> values.add(null)
-                    0 -> values.add(ByteArray(0))
-                    else -> values.add(buffer.readBytes(length))
+                    0 -> values.add(Buffer())
+                    else -> values.add(Buffer().apply { writeFully(buffer.readBytes(length)) })
                 }
             }
             return DataRow(values)

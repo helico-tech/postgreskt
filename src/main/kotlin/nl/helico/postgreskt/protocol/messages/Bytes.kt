@@ -51,4 +51,11 @@ fun buildFrontendMessage(
     }
 }
 
+fun Buffer.padded(size: Short): Buffer {
+    val padded = Buffer()
+    while (padded.size < size - this.size) padded.writeByte(0)
+    padded.writePacket(this)
+    return padded
+}
+
 fun buffered(body: Buffer.() -> Unit) = Buffer().apply { body() }

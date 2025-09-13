@@ -1,6 +1,7 @@
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import nl.helico.postgreskt.Client
@@ -19,5 +20,9 @@ suspend fun main() {
 
     client.connect()
 
-    client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
+    /*val (fields, data) = client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
+    println(fields)
+    data.collect {
+        println(it)
+    }*/
 }
