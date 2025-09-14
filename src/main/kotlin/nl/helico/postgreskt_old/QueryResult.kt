@@ -1,4 +1,4 @@
-package nl.helico.postgreskt
+package nl.helico.postgreskt_old
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.io.Buffer

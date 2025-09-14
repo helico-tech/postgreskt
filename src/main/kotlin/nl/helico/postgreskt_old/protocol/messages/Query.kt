@@ -1,9 +1,8 @@
-package nl.helico.postgreskt.protocol.messages
+package nl.helico.postgreskt_old.protocol.messages
 
 import io.ktor.utils.io.core.readBytes
 import io.ktor.utils.io.core.writeFully
 import kotlinx.io.Buffer
-import kotlinx.io.readByteArray
 
 data class Query(
     val query: String,

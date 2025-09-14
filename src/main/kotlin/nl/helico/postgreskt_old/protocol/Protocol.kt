@@ -1,4 +1,4 @@
-package nl.helico.postgreskt.protocol
+package nl.helico.postgreskt_old.protocol
 
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.openReadChannel
@@ -16,10 +16,10 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import nl.helico.postgreskt.protocol.messages.BackendMessage
-import nl.helico.postgreskt.protocol.messages.BackendMessageSerializer
-import nl.helico.postgreskt.protocol.messages.Deserializer
-import nl.helico.postgreskt.protocol.messages.FrontendMessage
+import nl.helico.postgreskt_old.protocol.messages.BackendMessage
+import nl.helico.postgreskt_old.protocol.messages.BackendMessageSerializer
+import nl.helico.postgreskt_old.protocol.messages.Deserializer
+import nl.helico.postgreskt_old.protocol.messages.FrontendMessage
 import java.lang.AutoCloseable
 
 interface Protocol {

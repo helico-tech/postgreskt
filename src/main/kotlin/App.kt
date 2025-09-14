@@ -1,12 +1,4 @@
-import io.ktor.network.selector.SelectorManager
-import io.ktor.network.sockets.aSocket
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.forEach
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import nl.helico.postgreskt.Client
-import nl.helico.postgreskt.protocol.Protocol
-import nl.helico.postgreskt.protocol.messages.StartupMessage
+import nl.helico.postgreskt_old.Client
 
 suspend fun main() {
     val client =

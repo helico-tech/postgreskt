@@ -1,4 +1,4 @@
-package nl.helico.postgreskt.protocol.messages
+package nl.helico.postgreskt_old.protocol.messages
 
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.core.writePacket
