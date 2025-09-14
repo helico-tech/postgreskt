@@ -2,7 +2,6 @@ package nl.helico.postgreskt.messages
 
 import io.ktor.util.Digest
 import kotlinx.io.readByteArray
-import nl.helico.postgreskt_old.protocol.messages.writeCString
 
 data object AuthenticationOk : BackendMessage
 

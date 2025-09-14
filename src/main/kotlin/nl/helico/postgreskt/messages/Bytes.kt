@@ -6,7 +6,6 @@ import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.readString
 import kotlinx.io.writeString
-import nl.helico.postgreskt_old.protocol.messages.writeNullByte
 
 fun Sink.writeNullByte() {
     writeByte(0)

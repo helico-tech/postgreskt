@@ -16,11 +16,13 @@ import io.ktor.utils.io.writePacket
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
 import nl.helico.postgreskt.messages.StartupMessage
+import nl.helico.postgreskt.messages.Terminate
 import nl.helico.postgreskt.states.Disconnected
 import nl.helico.postgreskt.states.ReadyForQuery
 import nl.helico.postgreskt.states.StateMachine
@@ -81,6 +83,12 @@ class Client(
         )
 
         stateMachine.waitForState(ReadyForQuery)
+    }
+
+    suspend fun disconnect() {
+        stateMachine.handle(Terminate)
+        scope.cancel()
+        currentSocket?.close()
     }
 
     private suspend fun receive() {

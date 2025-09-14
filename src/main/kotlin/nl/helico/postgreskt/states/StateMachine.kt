@@ -24,18 +24,11 @@ class StateMachine(
     suspend fun handle(message: Message) {
         val messages = mutableListOf<FrontendMessage>()
         var state = currentState.value
-        val context =
-            Attributes().apply {
-                putAll(this@StateMachine.context)
-                put(SendAttributeKey, { messages.add(it) })
-                put(
-                    TransitionAttributeKey,
-                    { state = it },
-                )
-            }
 
         state.handle(
             message = message,
+            send = { messages.add(it) },
+            transition = { state = it },
             context = context,
         )
         _currentState.update { old ->

@@ -1,18 +1,12 @@
 package nl.helico.postgreskt.states
 
 import io.ktor.util.AttributeKey
-import nl.helico.postgreskt.messages.FrontendMessage
+import nl.helico.postgreskt.messages.NotificationResponse
 
-typealias Send = (FrontendMessage) -> Unit
-typealias Transition = (State) -> Unit
+val RuntimeParameters = AttributeKey<MutableMap<String, String>>("runtime-parameters")
 
-val SendAttributeKey = AttributeKey<Send>("Send")
-val TransitionAttributeKey = AttributeKey<Transition>("Transition")
+val CancellationKeys = AttributeKey<MutableMap<Int, Int>>("cancellation-keys")
 
-fun HandleScope<*>.send(message: FrontendMessage) {
-    context[SendAttributeKey].invoke(message)
-}
+typealias NotificationHandler = (NotificationResponse) -> Unit
 
-fun HandleScope<*>.transition(state: State) {
-    context[TransitionAttributeKey].invoke(state)
-}
+val NotificationHandlers = AttributeKey<MutableList<NotificationHandler>>("notification-handlers")

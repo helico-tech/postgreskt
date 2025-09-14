@@ -1,29 +1,40 @@
 package nl.helico.postgreskt.states
 
 import io.ktor.util.Attributes
+import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.Message
 import kotlin.reflect.KClass
 
+typealias Send = (FrontendMessage) -> Unit
+typealias Transition = (State) -> Unit
+
 data class HandleScope<T : Message>(
     val message: T,
+    val send: Send,
+    val transition: Transition,
     val context: Attributes,
 )
+
 typealias Handler<T> = HandleScope<T>.() -> Unit
 
 interface State {
     fun handle(
         message: Message,
+        send: Send,
+        transition: Transition,
         context: Attributes,
     )
 }
 
-abstract class StateBuilder(
+abstract class StateDSL(
     builder: Builder.() -> Unit,
 ) : State {
     private val build = Builder().apply(builder)
 
     override fun handle(
         message: Message,
+        send: Send,
+        transition: Transition,
         context: Attributes,
     ) {
         val a: Attributes
@@ -31,7 +42,7 @@ abstract class StateBuilder(
             build.handlers[message::class] ?: build.unhandledHandler
                 ?: throw IllegalStateException("No handler for message type ${message::class} in state $this")
 
-        val scope = HandleScope(message, context)
+        val scope = HandleScope(message, send, transition, context)
         (handler as Handler<Message>).invoke(scope)
     }
 

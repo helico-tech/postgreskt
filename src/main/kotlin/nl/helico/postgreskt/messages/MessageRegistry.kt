@@ -69,7 +69,12 @@ class MessageRegistry(
 
 val DefaultMessageRegistry =
     MessageRegistry {
+        notificationResponse()
+        parameterStatus()
+        backendKeyData()
+
         startupMessage()
         authentication()
         query()
+        terminate()
     }

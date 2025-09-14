@@ -1,3 +1,4 @@
+import kotlinx.coroutines.delay
 import nl.helico.postgreskt.Client
 
 suspend fun main() {
@@ -11,6 +12,12 @@ suspend fun main() {
         )
 
     client.connect()
+
+    delay(1000)
+
+    client.disconnect()
+
+    delay(1000)
 
     /*val (fields, data) = client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
     println(fields)
