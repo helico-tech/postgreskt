@@ -7,5 +7,15 @@ fun interface Serializer<T : FrontendMessage> {
 }
 
 fun interface Deserializer<T : BackendMessage> {
-    fun deserialize(buffer: Buffer): T
+    fun deserialize(
+        type: Char,
+        buffer: Buffer,
+    ): T
+
+    object Unhandled : Deserializer<BackendMessage.Unhandled> {
+        override fun deserialize(
+            type: Char,
+            buffer: Buffer,
+        ): BackendMessage.Unhandled = BackendMessage.Unhandled(type, buffer)
+    }
 }

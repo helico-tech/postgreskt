@@ -13,8 +13,7 @@ class MessageRegistry(
     fun deserialize(
         type: Char,
         buffer: Buffer,
-    ): BackendMessage =
-        deserializers[type]?.deserialize(buffer) ?: throw NoSuchElementException("No deserializer for message type '$type'.")
+    ): BackendMessage = deserializers[type]?.deserialize(type, buffer) ?: Deserializer.Unhandled.deserialize(type, buffer)
 
     @Suppress("UNCHECKED_CAST")
     fun <T : FrontendMessage> serialize(message: T): Buffer =
@@ -46,10 +45,12 @@ class MessageRegistry(
 
         inline fun <reified T : BackendMessage> backend(
             type: Char,
-            crossinline body: Buffer.() -> T,
+            crossinline body: Buffer.(Char) -> T,
         ) = backend(
             type,
-            Deserializer { buffer -> buffer.body() },
+            Deserializer { type, buffer ->
+                body(buffer, type)
+            },
         )
 
         inline fun <reified T : FrontendMessage> frontend(crossinline body: Buffer.(T) -> Unit) =

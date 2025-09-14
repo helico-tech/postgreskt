@@ -10,6 +10,7 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readBuffer
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readInt
+import io.ktor.utils.io.writePacket
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
+import nl.helico.postgreskt.messages.StartupMessage
 
 class Client(
     val host: String,
@@ -45,6 +47,16 @@ class Client(
         writeChannel = currentSocket?.openWriteChannel(autoFlush = true)
 
         scope.launch { receive() }
+
+        send(
+            StartupMessage(
+                parameters =
+                    mapOf(
+                        "user" to username,
+                        "database" to database,
+                    ),
+            ),
+        )
     }
 
     private suspend fun receive() {
@@ -59,5 +71,9 @@ class Client(
         }
     }
 
-    private suspend fun send(message: FrontendMessage) {}
+    private suspend fun send(message: FrontendMessage) {
+        writeChannel?.also {
+            it.writePacket(messageRegistry.serialize(message))
+        }
+    }
 }
