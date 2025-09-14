@@ -1,5 +1,7 @@
-package nl.helico.postgreskt
+package nl.helico.postgreskt.states
 
+import io.ktor.util.Attributes
+import io.ktor.util.putAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -14,6 +16,7 @@ class StateMachine(
     val initialState: State = Disconnected,
     private val send: suspend (FrontendMessage) -> Unit = {},
     private val onStateChanged: (State, State) -> Unit = { _, _ -> },
+    private val context: Attributes = Attributes(),
 ) {
     private val _currentState = MutableStateFlow(initialState)
     val currentState: StateFlow<State> = _currentState
@@ -21,11 +24,19 @@ class StateMachine(
     suspend fun handle(message: Message) {
         val messages = mutableListOf<FrontendMessage>()
         var state = currentState.value
+        val context =
+            Attributes().apply {
+                putAll(this@StateMachine.context)
+                put(SendAttributeKey, { messages.add(it) })
+                put(
+                    TransitionAttributeKey,
+                    { state = it },
+                )
+            }
 
         state.handle(
             message = message,
-            send = { messages.add(it) },
-            transition = { state = it },
+            context = context,
         )
         _currentState.update { old ->
             state.also {

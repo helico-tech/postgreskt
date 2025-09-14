@@ -29,9 +29,15 @@ fun Source.readCString(): String {
 
 fun buffered(body: Buffer.() -> Unit) = Buffer().apply { body() }
 
-fun Buffer.writeSized(body: Buffer.() -> Unit) {
+fun Buffer.writeSized(
+    type: Char? = null,
+    body: Buffer.() -> Unit,
+) {
     val packet = buffered(body)
     val size = packet.size.toInt() + Int.SIZE_BYTES
+
+    if (type != null) writeByte(type.code.toByte())
+
     writeInt(size)
     writePacket(packet)
 }

@@ -5,6 +5,8 @@ import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import io.ktor.util.AttributeKey
+import io.ktor.util.Attributes
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readBuffer
@@ -19,31 +21,50 @@ import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
 import nl.helico.postgreskt.messages.StartupMessage
+import nl.helico.postgreskt.states.Disconnected
+import nl.helico.postgreskt.states.ReadyForQuery
+import nl.helico.postgreskt.states.StateMachine
 
-class Client(
+data class ConnectionParameters(
     val host: String,
     val port: Int,
     val database: String,
     val username: String,
     val password: String,
+)
+
+val ConnectionParametersKey = AttributeKey<ConnectionParameters>("ConnectionParameters")
+
+class Client(
+    val parameters: ConnectionParameters,
     private val messageRegistry: MessageRegistry = DefaultMessageRegistry,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("PostgresClient")),
 ) {
+    constructor(host: String, port: Int, username: String, database: String, password: String) : this(
+        parameters = ConnectionParameters(host, port, username, database, password),
+    )
+
     private val selectorManager = SelectorManager(scope.coroutineContext + Dispatchers.IO + CoroutineName("PostgresSelectorManager"))
 
     private var currentSocket: Socket? = null
     private var readChannel: ByteReadChannel? = null
     private var writeChannel: ByteWriteChannel? = null
 
+    private val context =
+        Attributes().apply {
+            put(ConnectionParametersKey, parameters)
+        }
+
     private val stateMachine =
         StateMachine(
             initialState = Disconnected,
             send = ::send,
             onStateChanged = { old, new -> println("State changed from $old to $new") },
+            context = context,
         )
 
     suspend fun connect() {
-        currentSocket = aSocket(selectorManager).tcp().connect(host, port)
+        currentSocket = aSocket(selectorManager).tcp().connect(parameters.host, parameters.port)
         readChannel = currentSocket?.openReadChannel()
         writeChannel = currentSocket?.openWriteChannel(autoFlush = true)
 
@@ -53,8 +74,8 @@ class Client(
             StartupMessage(
                 parameters =
                     mapOf(
-                        "user" to username,
-                        "database" to database,
+                        "user" to parameters.username,
+                        "database" to parameters.database,
                     ),
             ),
         )

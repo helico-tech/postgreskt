@@ -70,4 +70,6 @@ class MessageRegistry(
 val DefaultMessageRegistry =
     MessageRegistry {
         startupMessage()
+        authentication()
+        query()
     }
