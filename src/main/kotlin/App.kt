@@ -1,4 +1,4 @@
-import nl.helico.postgreskt_old.Client
+import nl.helico.postgreskt.Client
 
 suspend fun main() {
     val client =

@@ -48,7 +48,7 @@ class Client(
 
         scope.launch { receive() }
 
-        send(
+        stateMachine.handle(
             StartupMessage(
                 parameters =
                     mapOf(
@@ -57,6 +57,8 @@ class Client(
                     ),
             ),
         )
+
+        stateMachine.waitForState(ReadyForQuery)
     }
 
     private suspend fun receive() {
@@ -66,13 +68,17 @@ class Client(
                 val length = it.readInt()
                 val remaining = length - Int.SIZE_BYTES
                 val buffer = it.readBuffer(remaining)
-                stateMachine.handle(messageRegistry.deserialize(type, buffer))
+
+                val msg = messageRegistry.deserialize(type, buffer)
+                println("Received message: $msg")
+                stateMachine.handle(msg)
             }
         }
     }
 
     private suspend fun send(message: FrontendMessage) {
         writeChannel?.also {
+            println("Sending message: $message")
             it.writePacket(messageRegistry.serialize(message))
         }
     }
