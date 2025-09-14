@@ -39,6 +39,7 @@ class Client(
         StateMachine(
             initialState = Disconnected,
             send = ::send,
+            onStateChanged = { old, new -> println("State changed from $old to $new") },
         )
 
     suspend fun connect() {
