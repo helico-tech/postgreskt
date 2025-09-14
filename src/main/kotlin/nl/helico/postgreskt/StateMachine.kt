@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
+import nl.helico.postgreskt.messages.BackendMessage
 import nl.helico.postgreskt.messages.FrontendMessage
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -16,9 +17,7 @@ class StateMachine(
     private val _currentState = MutableStateFlow<State>(initialState)
     val currentState: StateFlow<State> = _currentState
 
-    private fun transition(newState: State) {
-        _currentState.value = newState
-        onStateChanged(newState)
+    fun handle(message: BackendMessage) {
     }
 
     suspend fun waitForState(
@@ -28,4 +27,9 @@ class StateMachine(
         withTimeout(timeout) {
             currentState.first { it in targetStates }
         }
+
+    private fun transition(newState: State) {
+        _currentState.value = newState
+        onStateChanged(newState)
+    }
 }

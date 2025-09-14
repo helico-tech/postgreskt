@@ -7,11 +7,16 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.readBuffer
+import io.ktor.utils.io.readByte
+import io.ktor.utils.io.readInt
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
+import nl.helico.postgreskt.messages.MessageRegistry
 
 class Client(
     val host: String,
@@ -19,6 +24,7 @@ class Client(
     val database: String,
     val username: String,
     val password: String,
+    private val messageRegistry: MessageRegistry = DefaultMessageRegistry,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("PostgresClient")),
 ) {
     private val selectorManager = SelectorManager(scope.coroutineContext + Dispatchers.IO + CoroutineName("PostgresSelectorManager"))
@@ -30,7 +36,7 @@ class Client(
     private val stateMachine =
         StateMachine(
             initialState = Disconnected,
-            send = ::produceFrontendMessage,
+            send = ::send,
         )
 
     suspend fun connect() {
@@ -38,13 +44,20 @@ class Client(
         readChannel = currentSocket?.openReadChannel()
         writeChannel = currentSocket?.openWriteChannel(autoFlush = true)
 
-        scope.launch { consumeBackendMessages() }
+        scope.launch { receive() }
     }
 
-    private suspend fun consumeBackendMessages() {
+    private suspend fun receive() {
         while (readChannel?.isClosedForRead != true) {
+            readChannel?.also {
+                val type = it.readByte().toInt().toChar()
+                val length = it.readInt()
+                val remaining = length - Int.SIZE_BYTES
+                val buffer = it.readBuffer(remaining)
+                stateMachine.handle(messageRegistry.deserialize(type, buffer))
+            }
         }
     }
 
-    private suspend fun produceFrontendMessage(message: FrontendMessage) {}
+    private suspend fun send(message: FrontendMessage) {}
 }
