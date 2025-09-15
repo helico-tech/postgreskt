@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
+import nl.helico.postgreskt.messages.Query
 import nl.helico.postgreskt.messages.StartupMessage
 import nl.helico.postgreskt.messages.Terminate
 import nl.helico.postgreskt.states.Disconnected
@@ -89,6 +90,10 @@ class Client(
         stateMachine.handle(Terminate)
         scope.cancel()
         currentSocket?.close()
+    }
+
+    suspend fun query(query: String) {
+        stateMachine.handle(Query(query))
     }
 
     private suspend fun receive() {

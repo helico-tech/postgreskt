@@ -1,14 +1,20 @@
 package nl.helico.postgreskt.states
 
+import io.ktor.util.AttributeKey
 import kotlinx.coroutines.runBlocking
 import nl.helico.postgreskt.ConnectionParameters
 import nl.helico.postgreskt.ConnectionParametersKey
 import nl.helico.postgreskt.messages.AuthenticationMD5
+import nl.helico.postgreskt.messages.AuthenticationOk
 import nl.helico.postgreskt.messages.BackendKeyData
+import nl.helico.postgreskt.messages.Close
+import nl.helico.postgreskt.messages.DataRow
 import nl.helico.postgreskt.messages.NotificationResponse
 import nl.helico.postgreskt.messages.ParameterStatus
 import nl.helico.postgreskt.messages.PasswordMessage
+import nl.helico.postgreskt.messages.Query
 import nl.helico.postgreskt.messages.ReadyForQuery
+import nl.helico.postgreskt.messages.RowDescription
 import nl.helico.postgreskt.messages.StartupMessage
 import nl.helico.postgreskt.messages.Terminate
 
@@ -63,9 +69,36 @@ data object Connecting : StateDSL({
         transition(ReadyForQuery)
     }
 
-    allowUnhandled()
+    ignore<AuthenticationOk>()
 })
 
 data object ReadyForQuery : StateDSL({
     common()
+
+    on<Query> {
+        send(message)
+        transition(Querying)
+    }
+})
+
+data object Querying : StateDSL({
+
+    @Suppress("ktlint:standard:property-naming")
+    val RowDescriptionKey = AttributeKey<RowDescription>("RowDescription")
+
+    common()
+
+    on<RowDescription> {
+        context.put(RowDescriptionKey, message)
+    }
+
+    on<DataRow> {
+        println(message)
+    }
+
+    ignore<Close>()
+
+    on<ReadyForQuery> {
+        transition(ReadyForQuery)
+    }
 })

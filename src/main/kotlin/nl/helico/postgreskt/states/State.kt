@@ -67,5 +67,7 @@ abstract class StateDSL(
         }
 
         inline fun <reified T : Message> on(noinline handler: HandleScope<T>.() -> Unit) = on(T::class, handler)
+
+        inline fun <reified T : Message> ignore() = on(T::class) { }
     }
 }

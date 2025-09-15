@@ -13,11 +13,11 @@ suspend fun main() {
 
     client.connect()
 
+    client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
+
     delay(1000)
 
     client.disconnect()
-
-    delay(1000)
 
     /*val (fields, data) = client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
     println(fields)
