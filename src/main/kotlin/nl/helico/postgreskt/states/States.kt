@@ -2,6 +2,7 @@ package nl.helico.postgreskt.states
 
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.readString
 import nl.helico.postgreskt.ConnectionParametersKey
 import nl.helico.postgreskt.messages.AuthenticationMD5
 import nl.helico.postgreskt.messages.AuthenticationOk
@@ -16,6 +17,8 @@ import nl.helico.postgreskt.messages.ReadyForQuery
 import nl.helico.postgreskt.messages.RowDescription
 import nl.helico.postgreskt.messages.StartupMessage
 import nl.helico.postgreskt.messages.Terminate
+import nl.helico.postgreskt.types.TypeDef
+import nl.helico.postgreskt.types.TypeDefsKey
 
 fun StateDSL.Builder.common() {
     on<Terminate> {
@@ -48,6 +51,7 @@ data object Disconnected : StateDSL({
 })
 
 data object Connecting : StateDSL({
+
     common()
 
     on<AuthenticationMD5> {
@@ -65,10 +69,35 @@ data object Connecting : StateDSL({
     }
 
     on<ReadyForQuery> {
-        transition(ReadyForQuery)
+        send(Query("SELECT t.oid, t.typname FROM pg_type t;"))
+        transition(RetrieveTypeDefinitions)
     }
 
     ignore<AuthenticationOk>()
+})
+
+data object RetrieveTypeDefinitions : StateDSL({
+    val types = mutableListOf<TypeDef>()
+
+    common()
+
+    on<DataRow> {
+        val (oid, typeName) = message.fields
+        types.add(
+            TypeDef(
+                oid = requireNotNull(oid).readString().toInt(),
+                name = requireNotNull(typeName).readString(),
+            ),
+        )
+    }
+
+    on<ReadyForQuery> {
+        context[TypeDefsKey] = types
+        transition(ReadyForQuery)
+    }
+
+    ignore<CommandComplete>()
+    ignore<RowDescription>()
 })
 
 data object ReadyForQuery : StateDSL({
