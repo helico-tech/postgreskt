@@ -30,9 +30,8 @@ data class DataRow(
     val fields: List<Buffer?>,
 ) : BackendMessage
 
-data class Close(
-    val type: Char,
-    val name: String,
+data class CommandComplete(
+    val tag: String,
 ) : BackendMessage
 
 fun MessageRegistry.Builder.query() {
@@ -73,9 +72,8 @@ fun MessageRegistry.Builder.query() {
     }
 
     backend('C') {
-        Close(
-            type = readByte().toInt().toChar(),
-            name = readCString(),
+        CommandComplete(
+            tag = readCString(),
         )
     }
 

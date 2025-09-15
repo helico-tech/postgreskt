@@ -2,12 +2,11 @@ package nl.helico.postgreskt.states
 
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.runBlocking
-import nl.helico.postgreskt.ConnectionParameters
 import nl.helico.postgreskt.ConnectionParametersKey
 import nl.helico.postgreskt.messages.AuthenticationMD5
 import nl.helico.postgreskt.messages.AuthenticationOk
 import nl.helico.postgreskt.messages.BackendKeyData
-import nl.helico.postgreskt.messages.Close
+import nl.helico.postgreskt.messages.CommandComplete
 import nl.helico.postgreskt.messages.DataRow
 import nl.helico.postgreskt.messages.NotificationResponse
 import nl.helico.postgreskt.messages.ParameterStatus
@@ -96,7 +95,7 @@ data object Querying : StateDSL({
         println(message)
     }
 
-    ignore<Close>()
+    ignore<CommandComplete>()
 
     on<ReadyForQuery> {
         transition(ReadyForQuery)
