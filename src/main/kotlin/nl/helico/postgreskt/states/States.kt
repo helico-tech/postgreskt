@@ -4,7 +4,6 @@ import io.ktor.util.AttributeKey
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.readString
 import nl.helico.postgreskt.ConnectionParametersKey
@@ -13,13 +12,19 @@ import nl.helico.postgreskt.messages.AuthenticationOk
 import nl.helico.postgreskt.messages.BackendKeyData
 import nl.helico.postgreskt.messages.CommandComplete
 import nl.helico.postgreskt.messages.DataRow
+import nl.helico.postgreskt.messages.Describe
+import nl.helico.postgreskt.messages.ErrorResponse
 import nl.helico.postgreskt.messages.NotificationResponse
+import nl.helico.postgreskt.messages.ParameterDescription
 import nl.helico.postgreskt.messages.ParameterStatus
+import nl.helico.postgreskt.messages.Parse
+import nl.helico.postgreskt.messages.ParseComplete
 import nl.helico.postgreskt.messages.PasswordMessage
 import nl.helico.postgreskt.messages.Query
 import nl.helico.postgreskt.messages.ReadyForQuery
 import nl.helico.postgreskt.messages.RowDescription
 import nl.helico.postgreskt.messages.StartupMessage
+import nl.helico.postgreskt.messages.Sync
 import nl.helico.postgreskt.messages.Terminate
 import nl.helico.postgreskt.types.TypeDef
 import nl.helico.postgreskt.types.TypeDefsKey
@@ -42,6 +47,10 @@ fun StateDSL.Builder.common() {
     on<NotificationResponse> {
         val handlers = context.computeIfAbsent(NotificationHandlers) { mutableListOf() }
         handlers.forEach { it(message) }
+    }
+
+    on<ErrorResponse> {
+        throw IllegalStateException("An error response was received: $message")
     }
 }
 
@@ -111,6 +120,17 @@ data object ReadyForQuery : StateDSL({
         send(message)
         transition(Querying(message.resultChannel))
     }
+
+    on<Parse> {
+        send(message)
+        send(Describe('S', message.name))
+        send(Sync)
+    }
+
+    ignore<ParseComplete>()
+    ignore<ParameterDescription>()
+    ignore<RowDescription>()
+    ignore<ReadyForQuery>()
 })
 
 data class Querying(

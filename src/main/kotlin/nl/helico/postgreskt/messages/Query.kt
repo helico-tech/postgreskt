@@ -28,6 +28,22 @@ data class RowDescription(
     )
 }
 
+data class ParameterDescription(
+    val parameterOid: List<Int>,
+) : BackendMessage
+
+data class Parse(
+    val name: String,
+    val query: String,
+) : FrontendMessage
+
+data object ParseComplete : BackendMessage
+
+data class Describe(
+    val type: Char,
+    val name: String,
+) : FrontendMessage
+
 data class DataRow(
     val fields: List<Buffer?>,
 ) : BackendMessage
@@ -79,9 +95,39 @@ fun MessageRegistry.Builder.query() {
         )
     }
 
+    backend('1') {
+        ParseComplete
+    }
+
+    backend('t') {
+        ParameterDescription(
+            parameterOid = (0 until readShort()).map { readInt() },
+        )
+    }
+
     frontend<Query> { message ->
         writeSized('Q') {
             writeCString(message.query)
         }
+    }
+
+    frontend<Parse> { message ->
+        writeSized('P') {
+            writeCString(message.name)
+            writeCString(message.query)
+            writeShort(0)
+        }
+    }
+
+    frontend<Describe> { message ->
+        writeSized('D') {
+            writeByte(message.type.code.toByte())
+            writeCString(message.name)
+        }
+    }
+
+    frontend<Sync> {
+        writeByte('S'.code.toByte())
+        writeInt(4) // Length is exactly 4 bytes (just the length field)
     }
 }

@@ -27,6 +27,8 @@ import nl.helico.postgreskt.messages.DataRow
 import nl.helico.postgreskt.messages.DefaultMessageRegistry
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
+import nl.helico.postgreskt.messages.ParameterDescription
+import nl.helico.postgreskt.messages.Parse
 import nl.helico.postgreskt.messages.Query
 import nl.helico.postgreskt.messages.RowDescription
 import nl.helico.postgreskt.messages.StartupMessage
@@ -47,6 +49,12 @@ data class ConnectionParameters(
 data class Result(
     val rowDescription: RowDescription,
     val data: Flow<DataRow>,
+)
+
+data class PreparedStatement(
+    val name: String,
+    val parameterDescription: ParameterDescription,
+    val rowDescription: RowDescription,
 )
 
 val ConnectionParametersKey = AttributeKey<ConnectionParameters>("ConnectionParameters")
@@ -113,11 +121,29 @@ class Client(
                 val rowDescription = async { stateMachine.waitForMessage<RowDescription>() }
                 val channel = Channel<DataRow>()
                 stateMachine.handle(Query(query, channel))
-
                 channel to rowDescription.await()
             }
 
         return Result(rowDescription, channel.consumeAsFlow())
+    }
+
+    suspend fun prepare(
+        name: String,
+        @Language("sql") preparedStatement: String,
+    ): PreparedStatement {
+        stateMachine.handle(Parse(name, preparedStatement))
+        val (parameterDescription, rowDescription) =
+            coroutineScope {
+                val parameterDescription = async { stateMachine.waitForMessage<ParameterDescription>() }
+                val rowDescription = async { stateMachine.waitForMessage<RowDescription>() }
+                parameterDescription.await() to rowDescription.await()
+            }
+
+        return PreparedStatement(
+            name,
+            parameterDescription,
+            rowDescription,
+        )
     }
 
     private suspend fun receive() {
