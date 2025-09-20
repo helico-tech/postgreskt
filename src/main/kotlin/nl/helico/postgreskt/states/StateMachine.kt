@@ -24,7 +24,7 @@ class StateMachine(
     private val _currentState = MutableStateFlow(initialState)
     val currentState: StateFlow<State> = _currentState
 
-    private val _events = MutableSharedFlow<Message>()
+    private val _events = MutableSharedFlow<Message>(replay = 256)
     val events: SharedFlow<Message> = _events
 
     suspend fun handle(message: Message) {

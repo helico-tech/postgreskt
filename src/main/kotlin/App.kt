@@ -14,7 +14,7 @@ suspend fun main() {
     client.connect()
 
     val query =
-        """SELECT 'foo' as "bar";""".trimIndent()
+        """SELECT $1 as "bar", $2 as "foo";""".trimIndent()
 
     // val (fields, data) = client.query(query)
 
@@ -25,7 +25,9 @@ suspend fun main() {
         println("FOO $it")
     }*/
 
-    delay(2000)
+    println(preparedStatement)
+
+    delay(1000)
 
     client.disconnect()
 

@@ -131,11 +131,13 @@ class Client(
         name: String,
         @Language("sql") preparedStatement: String,
     ): PreparedStatement {
-        stateMachine.handle(Parse(name, preparedStatement))
         val (parameterDescription, rowDescription) =
             coroutineScope {
                 val parameterDescription = async { stateMachine.waitForMessage<ParameterDescription>() }
                 val rowDescription = async { stateMachine.waitForMessage<RowDescription>() }
+
+                stateMachine.handle(Parse(name, preparedStatement))
+
                 parameterDescription.await() to rowDescription.await()
             }
 
