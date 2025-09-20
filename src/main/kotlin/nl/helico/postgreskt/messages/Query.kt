@@ -2,6 +2,7 @@ package nl.helico.postgreskt.messages
 
 import io.ktor.utils.io.core.readBytes
 import io.ktor.utils.io.core.writeFully
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.io.Buffer
 
 data class ReadyForQuery(
@@ -10,6 +11,7 @@ data class ReadyForQuery(
 
 data class Query(
     val query: String,
+    val resultChannel: SendChannel<DataRow>,
 ) : FrontendMessage
 
 data class RowDescription(

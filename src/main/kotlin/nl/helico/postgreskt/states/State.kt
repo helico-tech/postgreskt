@@ -15,10 +15,10 @@ data class HandleScope<T : Message>(
     val context: Attributes,
 )
 
-typealias Handler<T> = HandleScope<T>.() -> Unit
+typealias Handler<T> = suspend HandleScope<T>.() -> Unit
 
 interface State {
-    fun handle(
+    suspend fun handle(
         message: Message,
         send: Send,
         transition: Transition,
@@ -31,13 +31,12 @@ abstract class StateDSL(
 ) : State {
     private val build = Builder().apply(builder)
 
-    override fun handle(
+    override suspend fun handle(
         message: Message,
         send: Send,
         transition: Transition,
         context: Attributes,
     ) {
-        val a: Attributes
         val handler =
             build.handlers[message::class] ?: build.unhandledHandler
                 ?: throw IllegalStateException("No handler for message type ${message::class} in state $this")
@@ -66,7 +65,7 @@ abstract class StateDSL(
             unhandledHandler = {}
         }
 
-        inline fun <reified T : Message> on(noinline handler: HandleScope<T>.() -> Unit) = on(T::class, handler)
+        inline fun <reified T : Message> on(noinline handler: Handler<T>) = on(T::class, handler)
 
         inline fun <reified T : Message> ignore() = on(T::class) { }
     }

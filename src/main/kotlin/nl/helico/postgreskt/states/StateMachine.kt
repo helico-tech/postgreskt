@@ -2,8 +2,11 @@ package nl.helico.postgreskt.states
 
 import io.ktor.util.Attributes
 import io.ktor.util.putAll
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeout
@@ -21,7 +24,11 @@ class StateMachine(
     private val _currentState = MutableStateFlow(initialState)
     val currentState: StateFlow<State> = _currentState
 
+    private val _events = MutableSharedFlow<Message>()
+    val events: SharedFlow<Message> = _events
+
     suspend fun handle(message: Message) {
+        _events.emit(message)
         val messages = mutableListOf<FrontendMessage>()
         var state = currentState.value
 
@@ -45,5 +52,10 @@ class StateMachine(
     ): State =
         withTimeout(timeout) {
             currentState.first { it in targetStates }
+        }
+
+    suspend inline fun <reified T : Message> waitForMessage(timeout: Duration = 10.seconds) =
+        withTimeout(timeout) {
+            events.filterIsInstance<T>().first()
         }
 }

@@ -1,6 +1,10 @@
 package nl.helico.postgreskt.states
 
 import io.ktor.util.AttributeKey
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.readString
 import nl.helico.postgreskt.ConnectionParametersKey
@@ -69,7 +73,7 @@ data object Connecting : StateDSL({
     }
 
     on<ReadyForQuery> {
-        send(Query("SELECT t.oid, t.typname FROM pg_type t;"))
+        send(Query("SELECT t.oid, t.typname FROM pg_type t;", Channel(onBufferOverflow = BufferOverflow.DROP_OLDEST)))
         transition(RetrieveTypeDefinitions)
     }
 
@@ -105,28 +109,32 @@ data object ReadyForQuery : StateDSL({
 
     on<Query> {
         send(message)
-        transition(Querying)
+        transition(Querying(message.resultChannel))
     }
 })
 
-data object Querying : StateDSL({
+data class Querying(
+    val resultChannel: SendChannel<DataRow>,
+) : StateDSL({
 
-    @Suppress("ktlint:standard:property-naming")
-    val RowDescriptionKey = AttributeKey<RowDescription>("RowDescription")
+        @Suppress("ktlint:standard:property-naming")
+        val RowDescriptionKey = AttributeKey<RowDescription>("RowDescription")
 
-    common()
+        common()
 
-    on<RowDescription> {
-        context.put(RowDescriptionKey, message)
-    }
+        on<RowDescription> {
+            context.put(RowDescriptionKey, message)
+        }
 
-    on<DataRow> {
-        println(message)
-    }
+        on<DataRow> {
+            resultChannel.send(message)
+        }
 
-    ignore<CommandComplete>()
+        ignore<CommandComplete>()
 
-    on<ReadyForQuery> {
-        transition(ReadyForQuery)
-    }
-})
+        on<ReadyForQuery> {
+            resultChannel.close()
+            context.remove(RowDescriptionKey)
+            transition(ReadyForQuery)
+        }
+    })

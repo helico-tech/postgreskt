@@ -13,9 +13,20 @@ suspend fun main() {
 
     client.connect()
 
-    client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
-
-    delay(1000)
+    val (fields, data) =
+        client.query(
+            """
+            SELECT 
+                generate_series(1, 100) as id,
+                random() as random_value,
+                floor(random() * 1000)::int as random_int
+            FROM generate_series(1, 100);
+            """.trimIndent(),
+        )
+    data.collect {
+        delay(1000)
+        println("FOO $it")
+    }
 
     client.disconnect()
 
