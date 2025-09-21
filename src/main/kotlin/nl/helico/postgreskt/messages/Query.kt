@@ -52,6 +52,26 @@ data class CommandComplete(
     val tag: String,
 ) : BackendMessage
 
+data class Bind(
+    val name: String,
+    val preparedStatement: String,
+    val values: List<String?>,
+) : FrontendMessage
+
+data class Execute(
+    val name: String,
+    val resultChannel: SendChannel<DataRow>,
+) : FrontendMessage
+
+data class Close(
+    val type: Char,
+    val name: String,
+) : FrontendMessage
+
+data object BindComplete : BackendMessage
+
+data object CloseComplete : BackendMessage
+
 fun MessageRegistry.Builder.query() {
     backend('Z') {
         ReadyForQuery(readByte().toInt().toChar())
@@ -129,5 +149,52 @@ fun MessageRegistry.Builder.query() {
     frontend<Sync> {
         writeByte('S'.code.toByte())
         writeInt(4) // Length is exactly 4 bytes (just the length field)
+    }
+
+    frontend<Bind> { message ->
+        writeSized('B') {
+            writeCString(message.name)
+            writeCString(message.preparedStatement)
+
+            // Parameter format codes
+            writeShort(0) // Number of parameter format codes (0 = use default text format for all)
+
+            // Parameter values
+            writeShort(message.values.size.toShort())
+            message.values.forEach { value ->
+                val bytes = value?.toByteArray()
+                if (bytes == null) {
+                    writeInt(-1)
+                } else {
+                    writeInt(bytes.size)
+                    writeFully(bytes)
+                }
+            }
+
+            // Result format codes
+            writeShort(0) // Number of result format codes (0 = use default text format for all)
+        }
+    }
+
+    frontend<Execute> { message ->
+        writeSized('E') {
+            writeCString(message.name)
+            writeInt(0)
+        }
+    }
+
+    frontend<Close> { message ->
+        writeSized('C') {
+            writeByte(message.type.code.toByte())
+            writeCString(message.name)
+        }
+    }
+
+    backend('2') {
+        BindComplete
+    }
+
+    backend('3') {
+        CloseComplete
     }
 }

@@ -10,10 +10,16 @@ import nl.helico.postgreskt.ConnectionParametersKey
 import nl.helico.postgreskt.messages.AuthenticationMD5
 import nl.helico.postgreskt.messages.AuthenticationOk
 import nl.helico.postgreskt.messages.BackendKeyData
+import nl.helico.postgreskt.messages.BackendMessage
+import nl.helico.postgreskt.messages.Bind
+import nl.helico.postgreskt.messages.BindComplete
+import nl.helico.postgreskt.messages.Close
+import nl.helico.postgreskt.messages.CloseComplete
 import nl.helico.postgreskt.messages.CommandComplete
 import nl.helico.postgreskt.messages.DataRow
 import nl.helico.postgreskt.messages.Describe
 import nl.helico.postgreskt.messages.ErrorResponse
+import nl.helico.postgreskt.messages.Execute
 import nl.helico.postgreskt.messages.NotificationResponse
 import nl.helico.postgreskt.messages.ParameterDescription
 import nl.helico.postgreskt.messages.ParameterStatus
@@ -127,6 +133,17 @@ data object ReadyForQuery : StateDSL({
         send(Sync)
     }
 
+    on<Bind> {
+        send(message)
+    }
+
+    on<Execute> {
+        send(message)
+        send(Close('P', message.name))
+        send(Sync)
+        transition(Querying(message.resultChannel))
+    }
+
     ignore<ParseComplete>()
     ignore<ParameterDescription>()
     ignore<RowDescription>()
@@ -137,24 +154,19 @@ data class Querying(
     val resultChannel: SendChannel<DataRow>,
 ) : StateDSL({
 
-        @Suppress("ktlint:standard:property-naming")
-        val RowDescriptionKey = AttributeKey<RowDescription>("RowDescription")
-
         common()
-
-        on<RowDescription> {
-            context.put(RowDescriptionKey, message)
-        }
 
         on<DataRow> {
             resultChannel.send(message)
         }
 
-        ignore<CommandComplete>()
-
         on<ReadyForQuery> {
             resultChannel.close()
-            context.remove(RowDescriptionKey)
             transition(ReadyForQuery)
         }
+
+        ignore<CloseComplete>()
+        ignore<BindComplete>()
+        ignore<RowDescription>()
+        ignore<CommandComplete>()
     })

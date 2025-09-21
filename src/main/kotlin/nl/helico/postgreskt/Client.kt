@@ -23,8 +23,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
+import nl.helico.postgreskt.messages.Bind
 import nl.helico.postgreskt.messages.DataRow
 import nl.helico.postgreskt.messages.DefaultMessageRegistry
+import nl.helico.postgreskt.messages.Execute
 import nl.helico.postgreskt.messages.FrontendMessage
 import nl.helico.postgreskt.messages.MessageRegistry
 import nl.helico.postgreskt.messages.ParameterDescription
@@ -32,11 +34,14 @@ import nl.helico.postgreskt.messages.Parse
 import nl.helico.postgreskt.messages.Query
 import nl.helico.postgreskt.messages.RowDescription
 import nl.helico.postgreskt.messages.StartupMessage
+import nl.helico.postgreskt.messages.Sync
 import nl.helico.postgreskt.messages.Terminate
 import nl.helico.postgreskt.states.Disconnected
 import nl.helico.postgreskt.states.ReadyForQuery
 import nl.helico.postgreskt.states.StateMachine
 import org.intellij.lang.annotations.Language
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 data class ConnectionParameters(
     val host: String,
@@ -55,6 +60,11 @@ data class PreparedStatement(
     val name: String,
     val parameterDescription: ParameterDescription,
     val rowDescription: RowDescription,
+)
+
+data class Portal(
+    val name: String,
+    val preparedStatement: PreparedStatement,
 )
 
 val ConnectionParametersKey = AttributeKey<ConnectionParameters>("ConnectionParameters")
@@ -127,9 +137,10 @@ class Client(
         return Result(rowDescription, channel.consumeAsFlow())
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun prepare(
-        name: String,
         @Language("sql") preparedStatement: String,
+        name: String = Uuid.random().toString(),
     ): PreparedStatement {
         val (parameterDescription, rowDescription) =
             coroutineScope {
@@ -146,6 +157,24 @@ class Client(
             parameterDescription,
             rowDescription,
         )
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun execute(
+        preparedStatement: PreparedStatement,
+        values: List<String?> = emptyList(),
+        name: String = Uuid.random().toString(),
+    ): Result {
+        require(preparedStatement.parameterDescription.parameterOid.size == values.size) {
+            "The number of values must match the number of parameters for the prepared statement."
+        }
+
+        val channel = Channel<DataRow>()
+
+        stateMachine.handle(Bind(name = name, preparedStatement = preparedStatement.name, values = values))
+        stateMachine.handle(Execute(name, channel))
+
+        return Result(preparedStatement.rowDescription, channel.consumeAsFlow())
     }
 
     private suspend fun receive() {

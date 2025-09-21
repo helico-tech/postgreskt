@@ -1,4 +1,5 @@
 import kotlinx.coroutines.delay
+import kotlinx.io.readString
 import nl.helico.postgreskt.Client
 
 suspend fun main() {
@@ -13,27 +14,21 @@ suspend fun main() {
 
     client.connect()
 
-    val query =
-        """SELECT $1 as "bar", $2 as "foo";""".trimIndent()
+    val query = "SELECT $1 as \"bar\", $2 as \"foo\";"
 
-    // val (fields, data) = client.query(query)
+    val preparedStatement = client.prepare(query)
 
-    val preparedStatement = client.prepare("test", query)
+    val (rowDescription, data) = client.execute(preparedStatement, listOf("It is working!!", "For reals"))
 
-    /*data.collect {
-        delay(1000)
-        println("FOO $it")
-    }*/
-
-    println(preparedStatement)
-
-    delay(1000)
+    data.collect { row ->
+        val cells = row.fields.map { buffer -> buffer?.readString() }
+        val mapped =
+            rowDescription.fields
+                .map { it.field }
+                .zip(cells)
+                .toMap()
+        println(mapped)
+    }
 
     client.disconnect()
-
-    /*val (fields, data) = client.query("SELECT 1 AS \"test\", 'foo' AS \"bar\";")
-    println(fields)
-    data.collect {
-        println(it)
-    }*/
 }
