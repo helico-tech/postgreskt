@@ -1,8 +1,8 @@
-package nl.helico.postgreskt.states
+package nl.helico.postgreskt_old.states
 
 import io.ktor.util.Attributes
-import nl.helico.postgreskt.messages.FrontendMessage
-import nl.helico.postgreskt.messages.Message
+import nl.helico.postgreskt_old.messages.FrontendMessage
+import nl.helico.postgreskt_old.messages.Message
 import kotlin.reflect.KClass
 
 typealias Send = (FrontendMessage) -> Unit

@@ -1,7 +1,6 @@
-package nl.helico.postgreskt.states
+package nl.helico.postgreskt_old.states
 
 import io.ktor.util.Attributes
-import io.ktor.util.putAll
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -10,8 +9,8 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeout
-import nl.helico.postgreskt.messages.FrontendMessage
-import nl.helico.postgreskt.messages.Message
+import nl.helico.postgreskt_old.messages.FrontendMessage
+import nl.helico.postgreskt_old.messages.Message
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 

@@ -1,6 +1,5 @@
-import kotlinx.coroutines.delay
 import kotlinx.io.readString
-import nl.helico.postgreskt.Client
+import nl.helico.postgreskt_old.Client
 
 suspend fun main() {
     val client =

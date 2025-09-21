@@ -1,7 +1,7 @@
-package nl.helico.postgreskt.states
+package nl.helico.postgreskt_old.states
 
 import io.ktor.util.AttributeKey
-import nl.helico.postgreskt.messages.NotificationResponse
+import nl.helico.postgreskt_old.messages.NotificationResponse
 
 val RuntimeParameters = AttributeKey<MutableMap<String, String>>("runtime-parameters")
 

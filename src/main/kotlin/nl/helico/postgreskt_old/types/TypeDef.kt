@@ -1,4 +1,4 @@
-package nl.helico.postgreskt.types
+package nl.helico.postgreskt_old.types
 
 import io.ktor.util.AttributeKey
 
