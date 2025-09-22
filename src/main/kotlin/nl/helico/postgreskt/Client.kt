@@ -14,6 +14,15 @@ interface Client {
         @Language("sql") queryString: String,
     ): QueryResult
 
+    suspend fun prepare(
+        @Language("sql") queryString: String,
+    ): PreparedStatement
+
+    suspend fun execute(
+        preparedStatement: PreparedStatement,
+        values: List<String?> = emptyList(),
+    ): QueryResult
+
     companion object {
         operator fun invoke(connectionParameters: ConnectionParameters): Client = DefaultClient(connectionParameters)
     }

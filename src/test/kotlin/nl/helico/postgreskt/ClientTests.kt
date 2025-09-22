@@ -8,6 +8,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 @Testcontainers
 class ClientTests {
@@ -41,6 +42,24 @@ class ClientTests {
     fun simpleQuery(): Unit =
         testWithClient {
             val (_, rows) = query("SELECT 'one' AS one, 2 AS two;")
+            val data = rows.map { data -> data.fields.map { it?.readString() } }.toList()
+            assert(data == listOf(listOf("one", "2")))
+        }
+
+    @Test
+    fun preparedStatement(): Unit =
+        testWithClient {
+            val preparedStatement = prepare("SELECT $1 AS one, $2 AS two;")
+            assertEquals("SELECT \$1 AS one, \$2 AS two;", preparedStatement.query)
+            assertEquals(preparedStatement.parameterDescription.parameterOid.size, 2)
+            assertEquals(preparedStatement.rowDescription.fields.size, 2)
+        }
+
+    @Test
+    fun execute(): Unit =
+        testWithClient {
+            val preparedStatement = prepare("SELECT $1 AS one, $2 AS two;")
+            val (_, rows) = execute(preparedStatement, values = listOf("one", "2"))
             val data = rows.map { data -> data.fields.map { it?.readString() } }.toList()
             assert(data == listOf(listOf("one", "2")))
         }

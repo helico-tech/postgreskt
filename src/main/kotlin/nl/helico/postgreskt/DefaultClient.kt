@@ -1,49 +1,17 @@
 package nl.helico.postgreskt
 
-import io.ktor.network.selector.SelectorManager
-import io.ktor.network.sockets.Socket
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.readBuffer
-import io.ktor.utils.io.readByte
-import io.ktor.utils.io.readInt
-import io.ktor.utils.io.writePacket
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
-import nl.helico.postgreskt.QueryResult
-import nl.helico.postgreskt.messages.AuthenticationMD5
-import nl.helico.postgreskt.messages.BackendMessage
-import nl.helico.postgreskt.messages.DataRow
-import nl.helico.postgreskt.messages.DefaultMessageRegistry
-import nl.helico.postgreskt.messages.ErrorResponse
-import nl.helico.postgreskt.messages.FrontendMessage
-import nl.helico.postgreskt.messages.MessageRegistry
-import nl.helico.postgreskt.messages.NotificationResponse
-import nl.helico.postgreskt.messages.PasswordMessage
-import nl.helico.postgreskt.messages.Query
-import nl.helico.postgreskt.messages.ReadyForQuery
-import nl.helico.postgreskt.messages.RowDescription
-import nl.helico.postgreskt.messages.StartupMessage
-import nl.helico.postgreskt.messages.Terminate
-import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.flow.*
+import nl.helico.postgreskt.messages.*
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class DefaultClient(
     val connectionParameters: ConnectionParameters,
@@ -92,12 +60,49 @@ class DefaultClient(
     }
 
     override suspend fun query(queryString: String): QueryResult {
+        waitForState<State.ReadyForQuery>()
+
         val resultChannel = Channel<DataRow>()
-        transition(State.SimpleQuery(resultChannel))
+        transition(State.Collecting(resultChannel))
         send(Query(queryString))
 
         val rowDescription = waitForMessage<RowDescription>()
         return QueryResult(rowDescription, resultChannel.consumeAsFlow())
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun prepare(queryString: String): PreparedStatement {
+        waitForState<State.ReadyForQuery>()
+
+        val identifier = Uuid.random().toString()
+
+        send(Parse(name = identifier, queryString))
+        send(Describe('S', identifier))
+        send(Sync)
+
+        val parameterDescription = waitForMessage<ParameterDescription>()
+        val rowDescription = waitForMessage<RowDescription>()
+
+        return PreparedStatement(identifier, queryString, parameterDescription, rowDescription)
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun execute(
+        preparedStatement: PreparedStatement,
+        values: List<String?>,
+    ): QueryResult {
+        waitForState<State.ReadyForQuery>()
+
+        val resultChannel = Channel<DataRow>()
+
+        val portalId = Uuid.random().toString()
+        transition(State.Collecting(resultChannel))
+        send(Bind(portalId, preparedStatement.identifier, values))
+        send(Execute(portalId))
+        send(Close('P', portalId))
+        send(Sync)
+
+        return QueryResult(preparedStatement.rowDescription, resultChannel.consumeAsFlow())
     }
 
     private suspend fun handle() {
@@ -122,10 +127,10 @@ class DefaultClient(
 
                         is ReadyForQuery -> transition(State.ReadyForQuery)
 
-                        else -> {}
+                        else -> unhandled(message)
                     }
 
-                is State.SimpleQuery ->
+                is State.Collecting ->
                     when (message) {
                         is ReadyForQuery -> {
                             stata.resultChannel.close()
@@ -134,9 +139,10 @@ class DefaultClient(
 
                         is DataRow -> stata.resultChannel.send(message)
 
-                        else -> {}
+                        else -> unhandled(message)
                     }
-                else -> {}
+
+                else -> unhandled(message)
             }
         }
     }
@@ -184,6 +190,10 @@ class DefaultClient(
         }
     }
 
+    private fun unhandled(message: Message) {
+        println("Unhandled: $message")
+    }
+
     sealed interface State {
         data object Disconnected : State
 
@@ -191,7 +201,7 @@ class DefaultClient(
 
         data object ReadyForQuery : State
 
-        data class SimpleQuery(
+        data class Collecting(
             val resultChannel: Channel<DataRow>,
         ) : State
     }

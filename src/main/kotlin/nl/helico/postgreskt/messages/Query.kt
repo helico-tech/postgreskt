@@ -59,7 +59,6 @@ data class Bind(
 
 data class Execute(
     val name: String,
-    val resultChannel: SendChannel<DataRow>,
 ) : FrontendMessage
 
 data class Close(
