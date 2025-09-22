@@ -1,7 +1,9 @@
 package nl.helico.postgreskt
 
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
+import kotlinx.io.readString
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -27,14 +29,23 @@ class ClientTests {
     @Test
     fun connectAndDisconnect() =
         runBlocking {
-            val client = client()
+            val client = client(connect = false)
+            assert(!client.isConnected)
             client.connect()
             assert(client.isConnected)
             client.disconnect()
             assert(!client.isConnected)
         }
 
-    internal fun client() =
+    @Test
+    fun simpleQuery(): Unit =
+        testWithClient {
+            val (_, rows) = query("SELECT 'one' AS one, 2 AS two;")
+            val data = rows.map { data -> data.fields.map { it?.readString() } }.toList()
+            assert(data == listOf(listOf("one", "2")))
+        }
+
+    internal suspend fun client(connect: Boolean = true) =
         Client(
             connectionParameters =
                 ConnectionParameters(
@@ -44,5 +55,12 @@ class ClientTests {
                     password = PASSWORD,
                     database = DATABASE,
                 ),
-        )
+        ).also { if (connect) it.connect() }
+
+    internal fun testWithClient(block: suspend Client.() -> Unit) =
+        runBlocking {
+            val client = client()
+            block(client)
+            client.disconnect()
+        }
 }

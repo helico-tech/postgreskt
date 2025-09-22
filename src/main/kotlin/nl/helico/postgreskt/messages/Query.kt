@@ -11,7 +11,6 @@ data class ReadyForQuery(
 
 data class Query(
     val query: String,
-    val resultChannel: SendChannel<DataRow>,
 ) : FrontendMessage
 
 data class RowDescription(
