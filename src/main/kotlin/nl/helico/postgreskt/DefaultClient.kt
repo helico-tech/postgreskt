@@ -105,15 +105,37 @@ class DefaultClient(
         return QueryResult(preparedStatement.rowDescription, resultChannel.consumeAsFlow())
     }
 
+    override suspend fun listen(channel: String): Flow<NotificationResponse> {
+        waitForState<State.ReadyForQuery>()
+
+        val resultChannel = Channel<NotificationResponse>()
+
+        transition(State.Listening(resultChannel))
+
+        send(Query("LISTEN $channel"))
+
+        return resultChannel
+            .consumeAsFlow()
+            .onCompletion {
+                send(Query("UNLISTEN $channel"))
+                transition(State.ReadyForQuery)
+                resultChannel.close()
+            }
+    }
+
+    override suspend fun notify(
+        channel: String,
+        payload: String,
+    ) {
+        send(Query("NOTIFY $channel, '$payload'"))
+        waitForMessage<CommandComplete>()
+    }
+
     private suspend fun handle() {
         backendMessages.collect { message ->
             if (message is ErrorResponse) throw IllegalStateException("An error response was received: $message")
-            if (message is NotificationResponse) {
-                println("Notification: $message")
-                return@collect
-            }
 
-            when (val stata = currentState.value) {
+            when (val state = currentState.value) {
                 State.Connecting ->
                     when (message) {
                         is AuthenticationMD5 ->
@@ -133,14 +155,26 @@ class DefaultClient(
                 is State.Collecting ->
                     when (message) {
                         is ReadyForQuery -> {
-                            stata.resultChannel.close()
+                            state.resultChannel.close()
                             transition(State.ReadyForQuery)
                         }
 
-                        is DataRow -> stata.resultChannel.send(message)
+                        is CommandComplete -> {
+                            state.resultChannel.close()
+                            transition(State.ReadyForQuery)
+                        }
+
+                        is DataRow -> state.resultChannel.send(message)
 
                         else -> unhandled(message)
                     }
+
+                is State.Listening -> {
+                    when (message) {
+                        is NotificationResponse -> state.resultChannel.send(message)
+                        else -> unhandled(message)
+                    }
+                }
 
                 else -> unhandled(message)
             }
@@ -203,6 +237,10 @@ class DefaultClient(
 
         data class Collecting(
             val resultChannel: Channel<DataRow>,
+        ) : State
+
+        data class Listening(
+            val resultChannel: Channel<NotificationResponse>,
         ) : State
     }
 }

@@ -1,6 +1,8 @@
 package nl.helico.postgreskt
 
+import kotlinx.coroutines.flow.Flow
 import nl.helico.postgreskt.QueryResult
+import nl.helico.postgreskt.messages.NotificationResponse
 import org.intellij.lang.annotations.Language
 
 interface Client {
@@ -22,6 +24,13 @@ interface Client {
         preparedStatement: PreparedStatement,
         values: List<String?> = emptyList(),
     ): QueryResult
+
+    suspend fun listen(channel: String): Flow<NotificationResponse>
+
+    suspend fun notify(
+        channel: String,
+        payload: String,
+    )
 
     companion object {
         operator fun invoke(connectionParameters: ConnectionParameters): Client = DefaultClient(connectionParameters)

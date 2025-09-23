@@ -1,9 +1,13 @@
 package nl.helico.postgreskt
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.readString
+import nl.helico.postgreskt.messages.NotificationResponse
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -63,6 +67,35 @@ class ClientTests {
             val data = rows.map { data -> data.fields.map { it?.readString() } }.toList()
             assert(data == listOf(listOf("one", "2")))
         }
+
+    @Test
+    fun listenAndNotify() {
+        runBlocking {
+            val clientA = client()
+            val clientB = client()
+
+            val events = mutableListOf<NotificationResponse>()
+
+            val job =
+                launch {
+                    clientA.listen("channel").take(1).collect {
+                        events.add(it)
+                    }
+                }
+
+            delay(1000)
+            clientB.notify("channel", "my payload")
+
+            job.join()
+
+            assertEquals(1, events.size)
+            assertEquals("channel", events[0].channel)
+            assertEquals("my payload", events[0].payload)
+
+            clientA.disconnect()
+            clientB.disconnect()
+        }
+    }
 
     internal suspend fun client(connect: Boolean = true) =
         Client(
