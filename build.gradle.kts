@@ -18,10 +18,11 @@ kotlin {
     jvm {
     }
 
-    macosArm64()
+    macosArm64 {
+        binaries.executable()
+    }
 
     js {
-        useEsModules()
         nodejs()
         binaries.executable()
     }
@@ -34,6 +35,7 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
                 implementation(ktorLibs.network)
             }
         }
