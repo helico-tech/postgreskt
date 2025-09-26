@@ -9,7 +9,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import nl.helico.postgreskt.messages.*
-import kotlin.js.JsExport
 import kotlin.reflect.KClass
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -29,6 +28,16 @@ class DefaultClient(
 
     private val currentState: MutableStateFlow<State> = MutableStateFlow(State.Disconnected)
     private val backendMessages: MutableSharedFlow<BackendMessage> = MutableSharedFlow()
+
+    private data class ScramSession(
+        val gs2: String,
+        val clientFirstBare: String,
+        val clientFirstFull: String,
+        val nonce: String,
+        var expectedServerSignature: ByteArray? = null,
+    )
+
+    private var scramSession: ScramSession? = null
 
     override val isConnected: Boolean
         get() = currentState.value == State.ReadyForQuery
@@ -150,6 +159,44 @@ class DefaultClient(
                                 ),
                             )
 
+                        is AuthenticationSASL -> {
+                            val mech =
+                                message.mechanisms.firstOrNull { it == "SCRAM-SHA-256" }
+                                    ?: error("Server does not support SCRAM-SHA-256: ${'$'}{message.mechanisms}")
+                            val cf = Scram.clientFirstMessage(connectionParameters.username)
+                            scramSession = ScramSession(cf.gs2Header, cf.clientFirstBare, cf.full, cf.nonce)
+                            send(SASLInitialResponse(mech, cf.full.encodeToByteArray()))
+                        }
+
+                        is AuthenticationSASLContinue -> {
+                            val sess = scramSession ?: error("SCRAM session not initialized")
+                            val (r, s, i) = Scram.parseServerFirst(message.data)
+                            require(r.startsWith(sess.nonce)) { "Server nonce does not start with client nonce" }
+                            val clientFinal =
+                                Scram.buildClientFinal(
+                                    gs2Header = sess.gs2,
+                                    clientFirstBare = sess.clientFirstBare,
+                                    password = connectionParameters.password,
+                                    serverFirst = message.data,
+                                    combinedNonce = r,
+                                    salt = s,
+                                    iterations = i,
+                                    username = connectionParameters.username,
+                                )
+                            scramSession = sess.copy(expectedServerSignature = clientFinal.expectedServerSignature)
+                            send(SASLResponse(clientFinal.full.encodeToByteArray()))
+                        }
+
+                        is AuthenticationSASLFinal -> {
+                            val expected = scramSession?.expectedServerSignature ?: error("Missing server signature for verification")
+                            Scram.verifyServerFinal(message.data, expected)
+                            // wait for AuthenticationOk -> ReadyForQuery
+                        }
+
+                        is AuthenticationOk -> {
+                            // noop, ReadyForQuery will follow
+                        }
+
                         is ReadyForQuery -> transition(State.ReadyForQuery)
 
                         else -> unhandled(message)
@@ -216,6 +263,7 @@ class DefaultClient(
                 val remaining = length - Int.SIZE_BYTES
                 val buffer = it.readBuffer(remaining)
                 val msg = messageRegistry.deserialize(type, buffer)
+                println("Receiving $msg")
                 backendMessages.emit(msg)
             }
         }
