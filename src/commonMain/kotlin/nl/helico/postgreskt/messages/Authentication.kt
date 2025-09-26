@@ -1,6 +1,7 @@
 package nl.helico.postgreskt.messages
 
 import io.ktor.util.Digest
+import io.ktor.utils.io.core.toByteArray
 import kotlinx.io.readByteArray
 
 data object AuthenticationOk : BackendMessage

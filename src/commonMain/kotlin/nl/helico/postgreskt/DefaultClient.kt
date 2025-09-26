@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package nl.helico.postgreskt
 
 import io.ktor.network.selector.*
@@ -15,10 +17,10 @@ import kotlin.uuid.Uuid
 
 class DefaultClient(
     val connectionParameters: ConnectionParameters,
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("PostgresClient")),
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + CoroutineName("PostgresClient")),
     private val messageRegistry: MessageRegistry = DefaultMessageRegistry,
 ) : Client {
-    private val selectorManager = SelectorManager(scope.coroutineContext + Dispatchers.IO + CoroutineName("PostgresSelectorManager"))
+    private val selectorManager = SelectorManager(scope.coroutineContext + Dispatchers.Default + CoroutineName("PostgresSelectorManager"))
 
     private var currentSocket: Socket? = null
     private var readChannel: ByteReadChannel? = null

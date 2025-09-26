@@ -1,6 +1,7 @@
 package nl.helico.postgreskt.messages
 
 import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.core.toByteArray
 import io.ktor.utils.io.core.writeFully
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.io.Buffer
