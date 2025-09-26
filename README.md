@@ -537,7 +537,7 @@ private suspend fun send(message: FrontendMessage) {
 
 This is an educational/client prototype. Some obvious next steps:
 
-- SSL negotiation and SCRAM-SHA-256 auth
+- SSL negotiation
 - Binary formats and type decoding beyond text values
 - Pipelining and more nuanced state handling
 - Extended error handling and retries
